@@ -12,11 +12,13 @@ import ssl
 import datetime
 
 
+# Configuration
 URL_TO_CHECK = "https://www.youtube.com/watch?v=O_Nzv-PNMmE"  # type: str
-input_file = 'proxylist.txt'
+USE_LOCK = False  # if True - only one checker will work
 CHECK_YOUTUBE_COUNTRY = True  # type: bool
 THREADS = 10  # number of checker at same time
-USE_LOCK = False  # if True - only one checker will work
+
+input_file = 'proxylist.txt'
 PRINT_BAD = False  # for debug
 PRINT_START = False  # for debug
 ADD_ERROR_LOG = False
