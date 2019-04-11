@@ -8,6 +8,7 @@ import urllib2
 import time
 import logging
 import httplib
+import ssl
 import datetime
 
 
@@ -119,7 +120,7 @@ class ThreadUrl(threading.Thread):
                                 logging.error('UNPLAYABLE FOUND')
                 else:
                     logging.debug('Skip connection to [{}]'.format(first_input))
-            except (urllib2.URLError, httplib.BadStatusLine) as ex:
+            except (urllib2.URLError, httplib.BadStatusLine, ssl.SSLError) as ex:
                 if PRINT_BAD:
                     logging.error('Cannot connect to {} - {}'.format(clean_proxy_info, ex.message))
             except Exception as ex:
@@ -159,7 +160,8 @@ signal.signal(signal.SIGPIPE, signal_handler)
 signal.signal(signal.SIGHUP, signal_handler)
 start = time.time()
 main()
+logging.debug('')
 for proxy, host in output:
     logging.info ('{:>6} - {:>22}'.format(proxy, host))
-
+logging.debug('')
 logging.warning("Elapsed Time: {}".format(time.time() - start))
