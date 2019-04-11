@@ -16,7 +16,7 @@ import datetime
 URL_TO_CHECK = "https://www.youtube.com/watch?v=O_Nzv-PNMmE"  # type: str
 USE_LOCK = False  # if True - only one checker will work
 CHECK_YOUTUBE_COUNTRY = True  # type: bool
-THREADS = 10  # number of checker at same time
+THREADS = 50  # number of checker at same time
 
 input_file = 'proxylist.txt'
 PRINT_BAD = False  # for debug
