@@ -66,16 +66,25 @@ logging.info("Starting execution : ID {}".format(run_prefix))
 class ThreadUrl(threading.Thread):
     """Threaded Url Grab"""
     connect_sem = threading.Semaphore()
+    inter_sem = threading.Semaphore()
     counter = 0
 
     def __init__(self, queue):
         threading.Thread.__init__(self)
         self.queue = queue
+        self.id = 0
 
     def run(self):
         while CONTINUE_LOOP:
             proxy_info = clean_proxy_info = first_input = ''
-            ThreadUrl.counter += 1
+            try:
+                ThreadUrl.inter_sem.acquire()
+                ThreadUrl.counter += 1
+                self.id = ThreadUrl.counter
+            except:
+                pass
+            finally:
+                ThreadUrl.inter_sem.release()
             try:
                 first_input = self.queue.get().strip()  # type: str
                 clean_proxy_info = first_input.replace('\xc2\xa0', ' ').strip()  # type: str
@@ -112,7 +121,7 @@ class ThreadUrl(threading.Thread):
                     if sock.msg == 'OK' and sock.code == 200 and '<title>' in rs \
                             and (CHECK_YOUTUBE_COUNTRY and 'UNPLAYABLE' not in rs):
                         logging.info('{:>3} Success [ {:>21} ] ( in {} )'.format(
-                            ThreadUrl.counter, proxy_info, datetime.timedelta(seconds=t_r)))
+                            self.id, proxy_info, datetime.timedelta(seconds=t_r)))
                         output.append((t_r, proxy_info))
                     else:
                         if PRINT_BAD:
@@ -164,6 +173,6 @@ start = time.time()
 main()
 logging.debug('')
 for proxy, host in output:
-    logging.info ('{:>6} - {:>22}'.format(proxy, host))
+    logging.info('{:>6} - {:>22}'.format(proxy, host))
 logging.debug('')
 logging.warning("Elapsed Time: {}".format(time.time() - start))
