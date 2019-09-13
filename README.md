@@ -24,3 +24,11 @@ Run the script
 ~~~ bash
 python main.py
 ~~~
+
+
+
+For download
+
+bash
+
+export proxy=""; export https_proxy=$proxy; export http_proxy=$proxy; echo "HTTP:"$http_proxy; echo "HTTPS:"$https_proxy; youtube-dl  https://www.youtube.com/watch?v=VXOjcxhevlM
