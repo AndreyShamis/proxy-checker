@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import Queue
 import os
 import signal
 import sys
@@ -10,6 +9,12 @@ import logging
 import httplib
 import ssl
 import datetime
+import subprocess
+from datetime import datetime, timedelta
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty  # python 2.x
 
 
 # Configuration
@@ -23,12 +28,12 @@ PRINT_BAD = False  # for debug
 PRINT_START = False  # for debug
 ADD_ERROR_LOG = False
 ADD_ALL_LOG = False
-queue = Queue.Queue()
+queue = Queue()
 output = []
 CONTINUE_LOOP = True  # for internal use
 USER_AGENT= 'Mozilla/5.0'  # type: str
 
-run_prefix = datetime.datetime.now().strftime("%y%m%d_%H%M")
+run_prefix = datetime.now().strftime("%y%m%d_%H%M")
 log_frmt = '%(asctime)s | %(name)-10s | %(levelname)-9s | %(message)s'
 datefmt = '%Y/%m/%d %H:%M:%S'
 
@@ -73,6 +78,73 @@ class ThreadUrl(threading.Thread):
         threading.Thread.__init__(self)
         self.queue = queue
         self.id = 0
+        self.youtube_dl_proc = None
+
+    def start_youtube_dl(self, proxy_info):
+        ret = False
+        start_time = datetime.now()
+        expired_time = False
+        ON_POSIX = 'posix' in sys.builtin_module_names
+        _cmd = "youtube-dl --proxy=\"{}\" --no-check-certificate " \
+               "--prefer-insecure -F https://www.youtube.com/watch?v=VXOjcxhevlM".format(proxy_info)
+        self.youtube_dl_proc = subprocess.Popen(_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                close_fds=ON_POSIX, preexec_fn=os.setsid)
+        q_stdout_youtube = Queue()
+        q_error_em = Queue()
+
+        def enqueue_output(out, queue):
+            for line in iter(out.readline, b''):
+                queue.put(line)
+            out.close()
+
+        t_stdout_youtube= threading.Thread(target=enqueue_output, args=(self.youtube_dl_proc.stdout, q_stdout_youtube))
+        t_error_em = threading.Thread(target=enqueue_output, args=(self.youtube_dl_proc.stderr, q_error_em))
+        t_stdout_youtube.daemon = True  # thread dies with the program
+        t_error_em.daemon = True  # thread dies with the program
+        t_stdout_youtube.start()
+        t_error_em.start()
+        time.sleep(0.5)
+        full_stdout = ''
+        # read line without blocking
+        while t_stdout_youtube.is_alive() and CONTINUE_LOOP:
+            try:
+                line = q_stdout_youtube.get_nowait()
+            except Empty:
+                pass
+            else:
+                try:
+                    if isinstance(line, bytes):
+                        line = line.decode('utf8')
+                except:
+                    pass
+                # got line
+                if line != '':
+                    full_stdout += line.rstrip()
+                    # print('STDOUT: {} - {}'.format(proxy_info, line.rstrip()))
+            try:
+                line = q_error_em.get_nowait()
+            except Empty:
+                pass
+            else:
+                try:
+                    if isinstance(line, bytes):
+                        line = line.decode('utf8')
+                except:
+                    pass
+                # got line
+                if line != '':
+                    try:
+                        if isinstance(line, bytes):
+                            line = line.decode('utf8')
+                    except:
+                        pass
+                    print('STDERR: {} - {}'.format(proxy_info, line.rstrip()))
+        end_time = datetime.now()
+        if 'fps' in full_stdout and 'video only' in full_stdout:
+            ret = True
+        logging.info('{} - YOUTUBE RES IS {} - Finish in {}'.format(proxy_info, ret, end_time - start_time))
+
+        return ret
 
     def run(self):
         while CONTINUE_LOOP:
@@ -121,8 +193,13 @@ class ThreadUrl(threading.Thread):
                     if sock.msg == 'OK' and sock.code == 200 and '<title>' in rs \
                             and (CHECK_YOUTUBE_COUNTRY and 'UNPLAYABLE' not in rs):
                         logging.info('{:>3} Success [ {:>21} ] ( in {} )'.format(
-                            self.id, proxy_info, datetime.timedelta(seconds=t_r)))
-                        output.append((t_r, proxy_info))
+                            self.id, proxy_info, timedelta(seconds=t_r)))
+
+                        if self.start_youtube_dl(proxy_info):
+                            output.append((t_r, proxy_info))
+                        else:
+                            if PRINT_BAD:
+                                logging.error('start_youtube_dl returned False for {}'.format(proxy_info))
                     else:
                         if PRINT_BAD:
                             if sock.msg != 'OK' or sock.code != 200:

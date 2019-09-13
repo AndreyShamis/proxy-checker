@@ -31,4 +31,9 @@ For download
 
 bash
 
+export proxy="91.225.226.39:35269"; export https_proxy=$proxy; export http_proxy=$proxy; echo "HTTP:"$http_proxy; echo "HTTPS:"$https_proxy; youtube-dl  --no-check-certificate --prefer-insecure https://www.youtube.com/watch?v=VXOjcxhevlM
+
+or
+
 export proxy=""; export https_proxy=$proxy; export http_proxy=$proxy; echo "HTTP:"$http_proxy; echo "HTTPS:"$https_proxy; youtube-dl  https://www.youtube.com/watch?v=VXOjcxhevlM
+
