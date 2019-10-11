@@ -23,7 +23,7 @@ except ImportError:
 
 
 # Configuration
-URL_TO_CHECK = "https://www.youtube.com/watch?v=O_Nzv-PNMmE"  # type: str
+URL_TO_CHECK = "https://www.youtube.com/watch?v=DY30Kf19Puk"  # type: str
 USE_LOCK = False  # if True - only one checker will work
 DELAY_BETWEEN_RUNS_SEC = 3
 CHECK_YOUTUBE_COUNTRY = True  # type: bool

@@ -31,6 +31,8 @@ For download
 
 bash
 
+export PROX="91.217.5.146:8080"; youtube-dl --proxy="${PROX}" --limit-rate 500K --retries 200 --no-check-certificate --prefer-insecure  "https://www.youtube.com/watch?v=DY30Kf19Puk"; export PROX="82.144.205.109:3128"; youtube-dl --proxy="${PROX}" --limit-rate 500K --retries 200 --no-check-certificate --prefer-insecure  "https://www.youtube.com/watch?v=DY30Kf19Puk";
+
 export proxy="91.225.226.39:35269"; export https_proxy=$proxy; export http_proxy=$proxy; echo "HTTP:"$http_proxy; echo "HTTPS:"$https_proxy; youtube-dl  --no-check-certificate --prefer-insecure https://www.youtube.com/watch?v=VXOjcxhevlM
 
 or
