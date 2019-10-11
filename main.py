@@ -1,25 +1,25 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import re
 import signal
 import sys
 import threading
-import urllib2
 import time
 import logging
-import httplib
 import ssl
 import datetime
 import subprocess
 from datetime import datetime, timedelta
+import urllib.request
+from queue import Queue, Empty
 try:
     import typing
 except:
     pass
 try:
-    from queue import Queue, Empty
-except ImportError:
-    from Queue import Queue, Empty  # python 2.x
+    import httplib
+except:
+    pass
 
 
 # Configuration
@@ -88,7 +88,7 @@ class ThreadUrl(threading.Thread):
     def __init__(self, the_queue):
         # type: (Queue) -> None
         threading.Thread.__init__(self)
-        self.queue = the_queue
+        self.queue = the_queue  # type: Queue
         self.id = 0  # type: int
         self.youtube_dl_proc = None
         self.youtube_verify_time = 0
@@ -373,6 +373,7 @@ class ThreadUrl(threading.Thread):
             try:
                 first_input = self.queue.get().strip()  # type: str
                 clean_proxy_info = first_input.replace('\xc2\xa0', ' ').strip()  # type: str
+                clean_proxy_info = clean_proxy_info.replace('\xa0', ' ').strip()  # type: str
                 if ' ' in clean_proxy_info:
                     proxy_info = clean_proxy_info.split(' ')[1]
                 else:
@@ -384,21 +385,24 @@ class ThreadUrl(threading.Thread):
                 if len(proxy_info):
                     if PRINT_START:
                         logging.info('Start {}/{}/ In progress {}/ Good {} - {}'.format(
-                            self.id, ThreadUrl.total_urls, self.queue.unfinished_tasks,
+                            self.id, ThreadUrl.total_urls, queue.unfinished_tasks,
                             ThreadUrl.good_found, proxy_info))
                         ThreadUrl.print_good(False)
-                    proxy_handler = urllib2.ProxyHandler({'https': proxy_info})
-                    opener = urllib2.build_opener(proxy_handler)
+                    proxy_handler = urllib.request.ProxyHandler({'https': proxy_info})
+                    opener = urllib.request.build_opener(proxy_handler)
                     opener.addheaders = [('User-agent', USER_AGENT)]
-                    urllib2.install_opener(opener)
-                    req = urllib2.Request(URL_TO_CHECK)
+                    urllib.request.install_opener(opener)
+                    req = urllib.request.Request(URL_TO_CHECK)
                     if USE_LOCK:
                         ThreadUrl.connect_sem.acquire()
                     try:
                         start_t = time.time()
-                        sock = urllib2.urlopen(req, timeout=(20 + queue.unfinished_tasks))
+                        # sock = urllib.request.urlopen(req, timeout=(20 + queue.unfinished_tasks))
+                        sock = opener.open(req, timeout=(20 + queue.unfinished_tasks))
+                        encoding = sock.headers.get_content_charset('utf-8')
                         rs = sock.read(100000)
                         end_t = time.time()
+                        rs = rs.decode(encoding)
                     except Exception as ex:
                         raise
                     finally:
@@ -419,7 +423,8 @@ class ThreadUrl(threading.Thread):
 
                     #  and '<title>YouTube</title>' in rs
                     t_r = round(end_t-start_t, 3)
-                    if sock.msg == 'OK' and sock.code == 200 and '<title>' in rs \
+                    sock_msg_ok = sock.msg == 'OK'  # type: bool
+                    if sock_msg_ok and sock.code == 200 and '<title>' in rs \
                             and (CHECK_YOUTUBE_COUNTRY and 'UNPLAYABLE' not in rs):
                         _test_yt = self.start_youtube_dl(proxy_info)
                         if not _test_yt:
@@ -447,13 +452,13 @@ class ThreadUrl(threading.Thread):
                                 logging.error('start_youtube_dl returned False for {}'.format(proxy_info))
                     else:
                         if PRINT_BAD:
-                            if sock.msg != 'OK' or sock.code != 200:
+                            if not sock_msg or sock.code != 200:
                                 logging.error('BAD socket')
                             if CHECK_YOUTUBE_COUNTRY and 'UNPLAYABLE' in rs:
                                 logging.error('UNPLAYABLE FOUND')
                 else:
                     logging.debug('Skip connection to [{}]'.format(first_input))
-            except (urllib2.URLError, httplib.BadStatusLine, ssl.SSLError) as ex:
+            except (urllib.request.URLError, ssl.SSLError) as ex: # , httplib.BadStatusLine,
                 if PRINT_BAD:
                     logging.error('Cannot connect to {} - {}'.format(clean_proxy_info, ex.message))
             except Exception as ex:
@@ -507,7 +512,7 @@ def main():
             counter += 1
             queue.put(host_tmp)
             if queue.unfinished_tasks > 1:
-                time.sleep(min(30, queue.unfinished_tasks / 2))
+                time.sleep(min(30, int(queue.unfinished_tasks / 2)))
 
     logging.info('Added {} hosts to check'.format(counter))
     # wait on the queue until everything has been processed
